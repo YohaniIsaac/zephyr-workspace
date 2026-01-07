@@ -1,0 +1,23 @@
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*-c,
+  clang-analyzer-*,
+  clang-diagnostic-*,
+  performance-*,
+  readability-*,
+  misc-*,
+  -misc-header-include-cycle,
+  -bugprone-easily-swappable-parameters
+
+CheckOptions:
+  - key: misc-include-cleaner.MissingIncludes
+    value: 'false'
+  - key: misc-include-cleaner.UnusedIncludes
+    value: 'true'
+  - key: readability-function-cognitive-complexity.IgnoreMacros
+    value: 'true'
+  - key: readability-identifier-length.MinimumVariableNameLength
+    value: 2
+  - key: readability-identifier-length.MinimumParameterNameLength
+    value: 2
