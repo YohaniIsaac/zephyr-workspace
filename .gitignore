@@ -65,3 +65,4 @@ release_*/
 
 checkpatch_report.txt
 format_check.txt
+scripts/checks/node_modules
