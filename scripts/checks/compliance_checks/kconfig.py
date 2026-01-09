@@ -37,7 +37,7 @@ class KconfigCheck(ComplianceTest):
         Run the Kconfig check.
 
         Args:
-            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default" (node/ and lora_gateway/)
+            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default"
         """
         full = True
         self.no_modules = False
@@ -55,8 +55,8 @@ class KconfigCheck(ComplianceTest):
             app_dirs = [d.rstrip('/') for d in utils.TARGET_PATHS if d != '.']
             analyze_all = '.' in utils.TARGET_PATHS
         else:
-            # DEFAULT MODE: Analyze node/ and lora_gateway/
-            app_dirs = ["node", "lora_gateway"]
+            # DEFAULT MODE: Analyze main_node/ and secondary_node/
+            app_dirs = ["main_node", "secondary_node"]
             analyze_all = False
 
         # Execute analysis
@@ -71,8 +71,8 @@ class KconfigCheck(ComplianceTest):
         """Analyze entire repository."""
         self.current_app_dir = None  # None = search entire repo (excluding deps/)
 
-        # Use lora_gateway/Kconfig or fallback to Kconfig.zephyr
-        app_kconfig = self._find_entry_kconfig("lora_gateway", filename)
+        # Use secondary_node/Kconfig or fallback to Kconfig.zephyr
+        app_kconfig = self._find_entry_kconfig("secondary_node", filename)
 
         kconf = self.parse_kconfig(filename=app_kconfig, hwm=hwm)
 
@@ -81,7 +81,9 @@ class KconfigCheck(ComplianceTest):
         self.check_no_undef_within_kconfig(kconf)
         self.check_no_redefined_in_defconfig(kconf)
         self.check_no_enable_in_boolean_prompt(kconf)
-        self.check_soc_name_sync(kconf)
+        # Skip check_soc_name_sync() - it's a Zephyr internal check that verifies
+        # soc.yml files are in sync with CONFIG_SOC, not applicable to workspace projects
+        # self.check_soc_name_sync(kconf)
         if full:
             self.check_no_undef_outside_kconfig(kconf)
 
@@ -90,10 +92,10 @@ class KconfigCheck(ComplianceTest):
         # Run global Kconfig structure checks ONCE
         logging.info("Running global Kconfig structure checks")
 
-        # Use first app with Kconfig, or fallback to lora_gateway, then Zephyr
+        # Use first app with Kconfig, or fallback to main_node, then Zephyr
         base_kconfig = None
         for app_dir in app_dirs:
-            kconfig_path = utils.OXYCONTROLLER_BASE / app_dir / filename
+            kconfig_path = utils.WORKSPACE_BASE / app_dir / filename
             if kconfig_path.exists():
                 base_kconfig = str(kconfig_path)
                 logging.info(f"Using {app_dir}/{filename} for global checks")
@@ -109,7 +111,8 @@ class KconfigCheck(ComplianceTest):
         self.check_no_undef_within_kconfig(kconf_base)
         self.check_no_redefined_in_defconfig(kconf_base)
         self.check_no_enable_in_boolean_prompt(kconf_base)
-        self.check_soc_name_sync(kconf_base)
+        # Skip check_soc_name_sync() - Zephyr internal check, not applicable to workspace projects
+        # self.check_soc_name_sync(kconf_base)
 
         # Run per-app CONFIG_* reference checks
         if not full:
@@ -121,7 +124,7 @@ class KconfigCheck(ComplianceTest):
 
     def _check_app_config_references(self, app_dir, filename, hwm):
         """Check CONFIG_* references for a single application."""
-        app_path = utils.OXYCONTROLLER_BASE / app_dir
+        app_path = utils.WORKSPACE_BASE / app_dir
         if not app_path.is_dir():
             logging.warning(f"Skipping {app_dir}: directory not found")
             return
@@ -143,7 +146,7 @@ class KconfigCheck(ComplianceTest):
 
     def _find_entry_kconfig(self, app_dir, filename):
         """Find entry Kconfig for an app (or fallback to Zephyr)."""
-        kconfig_path = utils.OXYCONTROLLER_BASE / app_dir / filename
+        kconfig_path = utils.WORKSPACE_BASE / app_dir / filename
         if kconfig_path.exists():
             return str(kconfig_path)
         return str(utils.ZEPHYR_BASE / "Kconfig.zephyr")
@@ -226,8 +229,6 @@ class KconfigCheck(ComplianceTest):
         This is needed to complete Kconfig compliance tests.
         """
         os.environ['HWM_SCHEME'] = 'v1'
-        # 'kconfiglib' is global
-        # pylint: disable=undefined-variable
 
         try:
             kconf_v1 = kconfiglib.Kconfig(filename=kconfig_v1_file, warn=False)
@@ -399,11 +400,11 @@ class KconfigCheck(ComplianceTest):
         os.environ["KCONFIG_WARN_UNDEF"] = "y"
 
         try:
-            # Note this will both print warnings to stderr _and_ return
-            # them: so some warnings might get printed
-            # twice. "warn_to_stderr=False" could unfortunately cause
-            # some (other) warnings to never be printed.
-            return kconfiglib.Kconfig(filename=filename)
+            # Use warn_to_stderr=False to avoid printing warnings to stderr.
+            # Our filter in check_no_undef_within_kconfig() will decide which
+            # warnings to report (only those from user code, not Zephyr internals).
+            # Warnings are still available in kconf.warnings for filtering.
+            return kconfiglib.Kconfig(filename=filename, warn_to_stderr=False)
         except kconfiglib.KconfigError as e:
             self.failure(str(e))
             raise EndTest from e
@@ -498,8 +499,6 @@ deliberately adding new entries, then bump the 'max_top_items' variable in
         # Checks that no symbols are (re)defined in defconfigs.
 
         for node in kconf.node_iter():
-            # 'kconfiglib' is global
-            # pylint: disable=undefined-variable
             if "defconfig" in node.filename and (node.prompt or node.help):
                 name = node.item.name if node.item not in (kconfiglib.MENU, kconfiglib.COMMENT) else str(node)
                 self.failure(f"""
@@ -515,9 +514,6 @@ Options must not be defined in defconfig files.
             # skip Kconfig nodes not in-tree (will present an absolute path)
             if os.path.isabs(node.filename):
                 continue
-
-            # 'kconfiglib' is global
-            # pylint: disable=undefined-variable
 
             # only process boolean symbols with a prompt
             if (
@@ -541,9 +537,6 @@ check Kconfig guidelines.
 
         bad_mconfs = []
         for node in kconf.node_iter():
-            # 'kconfiglib' is global
-            # pylint: disable=undefined-variable
-
             # Avoid flagging empty regular menus and choices, in case people do
             # something with 'osource' (could happen for 'menuconfig' symbols
             # too, though it's less likely)
@@ -564,9 +557,55 @@ https://docs.zephyrproject.org/latest/build/kconfig/tips.html#menuconfig-symbols
     def check_no_undef_within_kconfig(self, kconf):
         """
         Checks that there are no references to undefined Kconfig symbols within
-        the Kconfig files
+        the Kconfig files (excluding Zephyr internal files)
         """
-        undef_ref_warnings = "\n\n\n".join(warning for warning in kconf.warnings if "undefined symbol" in warning)
+        # Filter warnings to only include those from user's workspace
+        filtered_warnings = []
+
+        # Zephyr internal directories to exclude (these are relative paths from ZEPHYR_BASE)
+        zephyr_internal_dirs = [
+            "arch/",
+            "boards/",
+            "doc/",
+            "drivers/",
+            "dts/",
+            "include/",
+            "kernel/",
+            "lib/",
+            "misc/",
+            "modules/",
+            "samples/",
+            "scripts/",
+            "share/",
+            "soc/",
+            "subsys/",
+            "tests/",
+        ]
+
+        for warning in kconf.warnings:
+            if "undefined symbol" not in warning:
+                continue
+
+            # Only keep warnings that reference files in user's workspace (main_node, secondary_node)
+            # or skip warnings from Zephyr internal directories
+            if any(user_dir in warning for user_dir in ["main_node/", "secondary_node/"]):
+                # This is from user code, keep it
+                filtered_warnings.append(warning)
+                continue
+
+            # Check if warning references any Zephyr internal directory
+            # Format: "- Referenced at <path>:<line>:"
+            is_zephyr_internal = False
+            for zephyr_dir in zephyr_internal_dirs:
+                if f"at {zephyr_dir}" in warning or f"at deps/zephyr/{zephyr_dir}" in warning:
+                    is_zephyr_internal = True
+                    break
+
+            # Only add if it's NOT from Zephyr internals
+            if not is_zephyr_internal:
+                filtered_warnings.append(warning)
+
+        undef_ref_warnings = "\n\n\n".join(filtered_warnings)
 
         if undef_ref_warnings:
             self.failure(f"Undefined Kconfig symbols:\n\n {undef_ref_warnings}")
@@ -585,8 +624,6 @@ https://docs.zephyrproject.org/latest/build/kconfig/tips.html#menuconfig-symbols
 
         soc_kconfig_names = set()
         for node in kconf.node_iter():
-            # 'kconfiglib' is global
-            # pylint: disable=undefined-variable
             if isinstance(node.item, kconfiglib.Symbol) and node.item.name == "SOC":
                 n = node.item
                 for d in n.defaults:
@@ -631,6 +668,7 @@ Missing SoC names or CONFIG_SOC vs soc.yml out of sync:
 
         # Skip doc/releases and doc/security/vulnerabilities.rst, which often
         # reference removed symbols
+        # Use ignore_non_zero=True because git grep returns 1 when no matches found
         grep_stdout = utils.git(
             "grep",
             "--line-number",
@@ -643,6 +681,7 @@ Missing SoC names or CONFIG_SOC vs soc.yml out of sync:
             ":!/doc/releases",
             ":!/doc/security/vulnerabilities.rst",
             cwd=Path(utils.GIT_TOP),
+            ignore_non_zero=True,
         )
 
         # splitlines() supports various line terminators

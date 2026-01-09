@@ -31,7 +31,7 @@ class PyLint(ComplianceTest):
         Run the Pylint check.
 
         Args:
-            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default" (node/ and lora_gateway/)
+            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default"
         """
         # Path to pylint configuration file
         pylintrc = os.path.join(utils.GIT_TOP, ".pylintrc")
@@ -50,7 +50,7 @@ class PyLint(ComplianceTest):
             if mode == "path":
                 logging.info(f"Pylint: analyzing {', '.join(utils.TARGET_PATHS)}")
             else:
-                logging.info("Pylint: analyzing node/ and lora_gateway/ (default)")
+                logging.info("Pylint: analyzing main_node/ and secondary_node/ (default)")
             all_files = utils.files_from_paths()
             py_files = utils.filter_python_files(all_files)
 

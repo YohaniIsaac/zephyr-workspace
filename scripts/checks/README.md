@@ -1,6 +1,6 @@
 # Compliance Checks
 
-Sistema modular de chequeos de cumplimiento para el proyecto oxycontroller.
+Sistema modular de chequeos de cumplimiento para el proyecto zephyr-workspace.
 
 ## Requisitos
 
@@ -69,7 +69,7 @@ spatch --version
 #### dts-linter (Linter de DeviceTree)
 ```bash
 # Instalación local
-cd oxycontroller/scripts/checks
+cd zephyr-workspace/scripts/checks
 npm ci
 ```
 
@@ -208,7 +208,7 @@ python3 scripts/checks/check_compliance.py -l
 ```
 
 ### Modo DEFAULT (sin flags)
-Analiza directorios predeterminados: `node/` y `lora_gateway/`
+Analiza directorios predeterminados: `main_node/` y `secondary_node/`
 
 ```bash
 python3 scripts/checks/check_compliance.py
@@ -219,7 +219,7 @@ Ejeucta cada uno de los chequeos y genera un archivo .txt por cada uno de éstos
 Analiza directorios/archivos específicos:
 
 ```bash
-python3 scripts/checks/check_compliance.py -m ruff -p node/src -p lora_gateway/
+python3 scripts/checks/check_compliance.py -m ruff -p main_node/src -p secondary_node/
 ```
 
 ### Modo DIFF (`--commits`)
@@ -242,8 +242,8 @@ python3 scripts/checks/check_compliance.py -m checkpatch -c HEAD~3..HEAD
 # C/C++: clangformat + checkpatch
 python3 scripts/checks/check_compliance.py -m clangformat -m checkpatch
 
-# Todo Python en node/
-python3 scripts/checks/check_compliance.py -m pylint -m ruff -p node/
+# Todo Python en main_node/
+python3 scripts/checks/check_compliance.py -m pylint -m ruff -p main_node/
 ```
 
 ## Salida y Reportes

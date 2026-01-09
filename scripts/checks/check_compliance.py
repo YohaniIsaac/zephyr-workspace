@@ -11,18 +11,15 @@ import argparse
 import logging
 import os
 import shlex
-import subprocess
 import sys
 import traceback
 from pathlib import Path
 
+from compliance_checks import AVAILABLE_CHECKS, EndTest, git, init_globals, resolve_path_hint
 from junitparser import JUnitXml, TestSuite
 
-from compliance_checks import AVAILABLE_CHECKS, EndTest, git, init_globals, resolve_path_hint
-
-
 # Global variables (set by _main())
-OXYCONTROLLER_BASE = None
+WORKSPACE_BASE = None
 ZEPHYR_BASE = None
 
 logger = logging.getLogger(__name__)
@@ -126,7 +123,7 @@ def parse_args(argv):
         action="append",
         dest="path_list",
         metavar="DIR",
-        help=("Application directory to analyze (can be specified multiple times). Default: node, lora_gateway"),
+        help=("Application directory to analyze (can be specified multiple times). Default: main_node, secondary_node"),
     )
 
     args = parser.parse_args(argv)
@@ -135,7 +132,7 @@ def parse_args(argv):
     if args.path_list:
         args.path = args.path_list  # List of individual paths from multiple -p
     else:
-        args.path = ["node", "lora_gateway"]  # Default
+        args.path = ["main_node", "secondary_node"]  # Default
 
     # Track if -c/--commits was explicitly specified by the user
     args.commits_explicit = '-c' in argv or '--commits' in argv
@@ -149,14 +146,14 @@ def parse_args(argv):
 def _main(args):
     """The main function that orchestrates all checks."""
     # Initialize global variables
-    OXYCONTROLLER_BASE = os.environ.get("OXYCONTROLLER_BASE")
-    if OXYCONTROLLER_BASE:
-        OXYCONTROLLER_BASE = Path(OXYCONTROLLER_BASE)
-        ZEPHYR_BASE = OXYCONTROLLER_BASE / "deps" / "zephyr"
+    WORKSPACE_BASE = os.environ.get("WORKSPACE_BASE")
+    if WORKSPACE_BASE:
+        WORKSPACE_BASE = Path(WORKSPACE_BASE)
+        ZEPHYR_BASE = WORKSPACE_BASE / "deps" / "zephyr"
     else:
-        OXYCONTROLLER_BASE = Path(__file__).resolve().parents[2]
-        os.environ["OXYCONTROLLER_BASE"] = str(OXYCONTROLLER_BASE)
-        ZEPHYR_BASE = OXYCONTROLLER_BASE / "deps" / "zephyr"
+        WORKSPACE_BASE = Path(__file__).resolve().parents[2]
+        os.environ["WORKSPACE_BASE"] = str(WORKSPACE_BASE)
+        ZEPHYR_BASE = WORKSPACE_BASE / "deps" / "zephyr"
 
     GIT_TOP = Path(git("rev-parse", "--show-toplevel"))
     COMMIT_RANGE = args.commits
@@ -173,13 +170,13 @@ def _main(args):
     else:
         # DEFAULT MODE: No flags specified, use default directories
         mode = "default"
-        TARGET_PATHS = ["node", "lora_gateway"]
+        TARGET_PATHS = ["main_node", "secondary_node"]
 
     init_globals(
         git_top=GIT_TOP,
         commit_range=COMMIT_RANGE,
         target_paths=TARGET_PATHS,
-        oxycontroller_base=OXYCONTROLLER_BASE,
+        workspace_base=WORKSPACE_BASE,
         zephyr_base=ZEPHYR_BASE,
     )
     init_logs(args.loglevel)
@@ -222,6 +219,10 @@ def _main(args):
         test = testcase_class()
         test.global_args = args  # Pass global args to test instance
 
+        # Save environment before check to ensure isolation between checks
+        # Each check should be self-contained and not affect others
+        saved_env = os.environ.copy()
+
         try:
             print(f"Running {test.name:30} tests in {resolve_path_hint(test.path_hint)} ...")
             # Each check will use what it needs
@@ -233,6 +234,12 @@ def _main(args):
             pass
         except BaseException:
             test.failure(f"An exception occurred in {test.name}:\n{traceback.format_exc()}")
+
+        finally:
+            # Restore environment after check to prevent pollution
+            os.environ.clear()
+            os.environ.update(saved_env)
+            logger.debug(f"Environment restored after {test.name}")
 
         # Annotate if required
         if args.annotate:

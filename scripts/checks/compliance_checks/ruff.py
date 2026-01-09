@@ -29,7 +29,7 @@ class Ruff(ComplianceTest):
         Run the Ruff check.
 
         Args:
-            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default" (node/ and lora_gateway/)
+            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default"
         """
         # Get Python files based on mode
         if mode == "diff":
@@ -42,7 +42,7 @@ class Ruff(ComplianceTest):
             if mode == "path":
                 logging.info(f"Ruff: analyzing {', '.join(utils.TARGET_PATHS)}")
             else:
-                logging.info("Ruff: analyzing node/ and lora_gateway/ (default)")
+                logging.info("Ruff: analyzing main_node/ and secondary_node/ (default)")
             all_files = utils.files_from_paths()
             py_files = utils.filter_python_files(all_files)
 

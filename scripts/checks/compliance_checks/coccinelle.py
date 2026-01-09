@@ -58,7 +58,7 @@ class CoccinelleCheck(ComplianceTest):
         Run the Coccinelle check.
 
         Args:
-            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default" (node/ and lora_gateway/)
+            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default"
         """
         # Find Zephyr root
         zephyr_root = utils.ZEPHYR_BASE
@@ -83,7 +83,7 @@ class CoccinelleCheck(ComplianceTest):
             dirs_from_files = set()
             for file in c_files:
                 file_path = Path(file)
-                # Get top-level directory (e.g., "node" from "node/src/main.c")
+                # Get top-level directory (e.g., "main_node" from "main_node/src/main.c")
                 if len(file_path.parts) > 0:
                     top_dir = file_path.parts[0]
                     # Skip if in IGNORE_PATH_PARTS
@@ -107,8 +107,8 @@ class CoccinelleCheck(ComplianceTest):
                 logging.info(f"Coccinelle: analyzing {', '.join(utils.TARGET_PATHS)}")
                 search_dirs = [utils.GIT_TOP / d for d in utils.TARGET_PATHS]
             else:
-                logging.info("Coccinelle: analyzing node/ and lora_gateway/ (default)")
-                search_dirs = [utils.GIT_TOP / "node", utils.GIT_TOP / "lora_gateway"]
+                logging.info("Coccinelle: analyzing main_node/ and secondary_node/ (default)")
+                search_dirs = [utils.GIT_TOP / "main_node", utils.GIT_TOP / "secondary_node"]
 
             # Build list of absolute paths to analyze
             for d in search_dirs:

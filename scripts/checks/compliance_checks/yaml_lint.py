@@ -27,9 +27,9 @@ class YAMLLint(ComplianceTest):
         Run the YAMLLint check.
 
         Args:
-            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default" (node/ and lora_gateway/)
+            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default"
         """
-        config_file = utils.OXYCONTROLLER_BASE / ".yamllint"
+        config_file = utils.WORKSPACE_BASE / ".yamllint"
 
         # Determine which files to check based on mode
         if mode in ("path", "default"):

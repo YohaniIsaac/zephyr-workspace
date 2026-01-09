@@ -106,7 +106,7 @@ class DevicetreeLintingCheck(ComplianceTest):
         Run the DevicetreeLinting check.
 
         Args:
-            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default" (node/ and lora_gateway/)
+            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default"
         """
         self.npx_exe = self.NPX_EXECUTABLE
 
@@ -114,7 +114,7 @@ class DevicetreeLintingCheck(ComplianceTest):
             self.skip(
                 'dts-linter not installed. To run this check, '
                 'install Node.js and then run [npm --prefix ./scripts/checks ci] command inside '
-                'OXYCONTROLLER_BASE'
+                'WORKSPACE_BASE'
             )
             return
 
@@ -167,7 +167,7 @@ class DevicetreeLintingCheck(ComplianceTest):
                     else:
                         err = "dts-linter failed with no output. "
                         err += "Make sure you install Node.js and then run "
-                        err += "[npm --prefix ./scripts/checks ci] inside OXYCONTROLLER_BASE"
+                        err += "[npm --prefix ./scripts/checks ci] inside WORKSPACE_BASE"
                         self.failure(err)
                 except RuntimeError as ex:
                     self.failure(f"{ex}")
@@ -178,8 +178,8 @@ class DevicetreeLintingCheck(ComplianceTest):
                 logging.info(f"DevicetreeLinting: analyzing {', '.join(utils.TARGET_PATHS)}")
                 search_dirs = [utils.GIT_TOP / d for d in utils.TARGET_PATHS]
             else:
-                logging.info("DevicetreeLinting: analyzing node/ and lora_gateway/ (default)")
-                search_dirs = [utils.GIT_TOP / "node", utils.GIT_TOP / "lora_gateway"]
+                logging.info("DevicetreeLinting: analyzing main_node/ and secondary_node/ (default)")
+                search_dirs = [utils.GIT_TOP / "main_node", utils.GIT_TOP / "secondary_node"]
 
             # Find all applications in search directories
             applications = self._find_applications(search_dirs)
@@ -250,7 +250,7 @@ class DevicetreeLintingCheck(ComplianceTest):
                         else:
                             err = f"dts-linter failed for {app_dir.relative_to(utils.GIT_TOP)} with no output. "
                             err += "Make sure you install Node.js and then run "
-                            err += "[npm --prefix ./scripts/checks ci] inside OXYCONTROLLER_BASE"
+                            err += "[npm --prefix ./scripts/checks ci] inside WORKSPACE_BASE"
                             self.failure(err)
                     except RuntimeError as ex:
                         self.failure(f"Error in {app_dir.relative_to(utils.GIT_TOP)}: {ex}")

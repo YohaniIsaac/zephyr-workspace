@@ -44,7 +44,7 @@ class ClangFormat(ComplianceTest):
         Run the clang-format check.
 
         Args:
-            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default" (node/ and lora_gateway/)
+            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default"
         """
         exts = {".c", ".h"}
 

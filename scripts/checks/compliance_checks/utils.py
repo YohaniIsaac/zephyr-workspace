@@ -10,33 +10,45 @@ import sys
 from pathlib import Path
 
 # Global variables (set by _main())
-OXYCONTROLLER_BASE = None
+WORKSPACE_BASE = None
 ZEPHYR_BASE = None
 GIT_TOP = None
 COMMIT_RANGE = None
 TARGET_PATHS = []
 
 # Directories to ignore when scanning filesystem
-IGNORE_PATH_PARTS = {'.git', 'build', 'deps', 'build_sca', 'buildsca', '.cache', 'sca_logs', 'venv', '.venv', '.ruff_cache'}
+IGNORE_PATH_PARTS = {
+    '.git',
+    'build',
+    'deps',
+    'build_sca',
+    'buildsca',
+    '.cache',
+    'sca_logs',
+    'venv',
+    '.venv',
+    '.ruff_cache',
+}
 
-def init_globals(git_top, commit_range, target_paths, oxycontroller_base, zephyr_base):
+
+def init_globals(git_top, commit_range, target_paths, workspace_base, zephyr_base):
     """
     initialize global variables used by utility functions.
 
     this must be called by the orchestrator before any checks run.
     """
-    global GIT_TOP, COMMIT_RANGE, TARGET_PATHS, OXYCONTROLLER_BASE, ZEPHYR_BASE
+    global GIT_TOP, COMMIT_RANGE, TARGET_PATHS, WORKSPACE_BASE, ZEPHYR_BASE
     GIT_TOP = git_top
     COMMIT_RANGE = commit_range
     TARGET_PATHS = target_paths
-    OXYCONTROLLER_BASE = oxycontroller_base
+    WORKSPACE_BASE = workspace_base
     ZEPHYR_BASE = zephyr_base
 
 
 def resolve_path_hint(hint):
     """Resolve magic path hint strings."""
     hints = {
-        "<oxycontroller-base>": OXYCONTROLLER_BASE,
+        "<workspace-base>": WORKSPACE_BASE,
         "<zephyr-base>": ZEPHYR_BASE,
         "<git-top>": GIT_TOP,
     }

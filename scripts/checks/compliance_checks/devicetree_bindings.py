@@ -29,7 +29,7 @@ class DevicetreeBindingsCheck(ComplianceTest):
         Run the DevicetreeBindings check.
 
         Args:
-            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default" (node/ and lora_gateway/)
+            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default"
         """
         bindings_diff, bindings = self.get_yaml_bindings(mode)
 

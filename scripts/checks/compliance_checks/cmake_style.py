@@ -25,7 +25,7 @@ class CMakeStyle(ComplianceTest):
         Run the CMakeStyle check.
 
         Args:
-            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default" (node/ and lora_gateway/)
+            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default"
         """
         # Determine which files to check based on mode
         if mode in ("path", "default"):

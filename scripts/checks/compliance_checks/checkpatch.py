@@ -26,7 +26,7 @@ class CheckPatch(ComplianceTest):
         Run the checkpatch check.
 
         Args:
-            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default" (node/ and lora_gateway/)
+            mode: Analysis mode - "path" (explicit paths), "diff" (git diff), or "default"
         """
         checkpatch = utils.ZEPHYR_BASE / 'scripts' / 'checkpatch.pl'
         if not checkpatch.exists():

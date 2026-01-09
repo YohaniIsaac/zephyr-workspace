@@ -4,11 +4,10 @@
 CodeChecker compliance check.
 """
 
+import logging
 import re
 import shutil
-import logging
 import subprocess
-from typing import List, Tuple, Optional
 from pathlib import Path
 
 from . import utils
@@ -16,16 +15,13 @@ from .base import ComplianceTest
 
 
 class CodeChecker(ComplianceTest):
-
     name = "CodeChecker"
     doc = ""
     path_hint = "<git-top>"
 
-
     STATUS_OK = "ok"
     STATUS_FAIL = "fail"
     STATUS_ERROR = "error"
-
 
     _ANSI_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
     _CC_ISSUE_RE = re.compile(
@@ -41,12 +37,9 @@ class CodeChecker(ComplianceTest):
         out = []
         for ch in s:
             o = ord(ch)
-            if ch in ("\t", "\n", "\r"):
-                out.append(ch)
-            elif 0x20 <= o <= 0xD7FF or 0xE000 <= o <= 0xFFFD or 0x10000 <= o <= 0x10FFFF:
+            if ch in ("\t", "\n", "\r") or 0x20 <= o <= 0xD7FF or 0xE000 <= o <= 0xFFFD or 0x10000 <= o <= 0x10FFFF:
                 out.append(ch)
         return "".join(out)
-
 
     def _map_cc_severity(self, sev: str) -> str:
         s = (sev or "").strip().upper()
@@ -57,12 +50,11 @@ class CodeChecker(ComplianceTest):
         # LOW / STYLE / anything else
         return "notice"
 
-
-    def _extract_cc_issues(self, out: str) -> List[dict]:
-        issues: List[dict] = []
+    def _extract_cc_issues(self, out: str) -> list[dict]:
+        issues: list[dict] = []
         if not out:
             return issues
-        
+
         out = self._ANSI_RE.sub("", out)
 
         lines = out.splitlines()
@@ -121,14 +113,12 @@ class CodeChecker(ComplianceTest):
 
         return issues
 
-
     def _board_for_app(self, app: Path) -> str:
-        if "lora_gateway" in app.parts:
+        if "secondary_node" in app.parts:
             return "adafruit_feather_m0_lora"
-        return "oxycontroller4_samd21"
+        return "qemu_cortex_m3"
 
-
-    def _analyze_app(self, app: Path, only_files: Optional[List[str]] = None) -> Tuple[str, str]:
+    def _analyze_app(self, app: Path, only_files: list[str] | None = None) -> tuple[str, str]:
         board = self._board_for_app(app)
 
         rel = app.relative_to(utils.GIT_TOP)
@@ -140,11 +130,15 @@ class CodeChecker(ComplianceTest):
 
         # 1) west build
         west_cmd = [
-            "west", "build",
-            "-b", board,
-            "-d", str(build_dir),
+            "west",
+            "build",
+            "-b",
+            board,
+            "-d",
+            str(build_dir),
             str(app),
-            "-p", "always",
+            "-p",
+            "always",
             "--cmake-only",
             "--",
             "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
@@ -158,16 +152,9 @@ class CodeChecker(ComplianceTest):
             errors="replace",
         )
         if r.returncode != 0:
-            return (self.STATUS_ERROR, "west build failed for {0}\n{1}".format(rel, r.stdout))
-            
-        
-        gen_cmd = [
-            "west",
-            "build",
-            "-d", str(build_dir),
-            "-t",
-            "zephyr_generated_headers"
-        ]
+            return (self.STATUS_ERROR, f"west build failed for {rel}\n{r.stdout}")
+
+        gen_cmd = ["west", "build", "-d", str(build_dir), "-t", "zephyr_generated_headers"]
         r2 = subprocess.run(
             gen_cmd,
             cwd=utils.GIT_TOP,
@@ -179,10 +166,9 @@ class CodeChecker(ComplianceTest):
         if r2.returncode != 0:
             pass
 
-
         compile_db = build_dir / "compile_commands.json"
         if not compile_db.is_file():
-            return (self.STATUS_ERROR, "Missing compile_commands.json for {0}".format(rel))
+            return (self.STATUS_ERROR, f"Missing compile_commands.json for {rel}")
 
         # 2) CodeChecker analyze
         reports_dir = build_dir / "reports"
@@ -190,28 +176,32 @@ class CodeChecker(ComplianceTest):
 
         app_rel = rel.as_posix()
 
-
         skip_file = utils.GIT_TOP / ".codechecker.skip"
 
-
         analyze_cmd = [
-            "CodeChecker", "analyze",
+            "CodeChecker",
+            "analyze",
             str(compile_db),
-            "-o", str(reports_dir),
+            "-o",
+            str(reports_dir),
             "-q",
-            "--analyzers", "clangsa", "clang-tidy", "cppcheck",
+            "--analyzers",
+            "clangsa",
+            "clang-tidy",
+            "cppcheck",
             "--analyzer-config",
-            "clang-tidy:HeaderFilterRegex=.*/{0}/.*".format(app_rel),
+            f"clang-tidy:HeaderFilterRegex=.*/{app_rel}/.*",
         ]
         if skip_file.is_file():
             analyze_cmd += ["-i", str(skip_file)]
-        
-        # Zephyr logging macros trigger reserved identifier diagnostics 
-        analyze_cmd += [
-            "-d", "clang-diagnostic-reserved-identifier",
-            "-d", "clang-diagnostic-reserved-macro-identifier",
-        ]
 
+        # Zephyr logging macros trigger reserved identifier diagnostics
+        analyze_cmd += [
+            "-d",
+            "clang-diagnostic-reserved-identifier",
+            "-d",
+            "clang-diagnostic-reserved-macro-identifier",
+        ]
 
         r = subprocess.run(
             analyze_cmd,
@@ -222,20 +212,21 @@ class CodeChecker(ComplianceTest):
             errors="replace",
         )
         if r.returncode != 0:
-            return (self.STATUS_ERROR,
-                    "CodeChecker analyze error for {0}\n{1}".format(rel, r.stdout))
+            return (self.STATUS_ERROR, f"CodeChecker analyze error for {rel}\n{r.stdout}")
 
         # 3) CodeChecker parse
         parse_cmd = [
-            "CodeChecker", "parse",
+            "CodeChecker",
+            "parse",
             str(reports_dir),
             "--print-steps",
-            "--trim-path-prefix", str(utils.GIT_TOP),
+            "--trim-path-prefix",
+            str(utils.GIT_TOP),
         ]
 
         if skip_file.is_file():
             parse_cmd += ["-i", str(skip_file)]
-        
+
         r = subprocess.run(
             parse_cmd,
             cwd=utils.GIT_TOP,
@@ -249,10 +240,9 @@ class CodeChecker(ComplianceTest):
             return (self.STATUS_OK, "")
 
         if r.returncode == 2:
-            return (self.STATUS_FAIL, "CodeChecker reports for {0}\n{1}".format(rel, r.stdout))
-        
-        return (self.STATUS_ERROR, "CodeChecker parse error for {0}\n{1}".format(rel, r.stdout))
+            return (self.STATUS_FAIL, f"CodeChecker reports for {rel}\n{r.stdout}")
 
+        return (self.STATUS_ERROR, f"CodeChecker parse error for {rel}\n{r.stdout}")
 
     def _normalize_repo_rel(self, p: str) -> str:
         try:
@@ -264,8 +254,7 @@ class CodeChecker(ComplianceTest):
         except Exception:
             return str(p).replace("\\", "/")
 
-
-    def _finalize_results(self, results: List[Tuple[Path, str, str, Optional[List[str]]]]) -> None:
+    def _finalize_results(self, results: list[tuple[Path, str, str, list[str] | None]]) -> None:
         errors = []
         fails = []
 
@@ -278,10 +267,10 @@ class CodeChecker(ComplianceTest):
         if errors:
             msg = ["CodeChecker errors:"]
             for app, out in errors:
-                msg.append("\n=== {0} ===\n{1}".format(app.relative_to(utils.GIT_TOP), out))
+                msg.append(f"\n=== {app.relative_to(utils.GIT_TOP)} ===\n{out}")
             self.error(self._sanitize_for_xml("\n".join(msg)))
             return
-        
+
         if fails:
             any_reported = False
             parsing_failed = []
@@ -302,11 +291,10 @@ class CodeChecker(ComplianceTest):
                     issues = [it for it in issues if it.get("file") in keep_set]
                 else:
                     keep_prefixes = (
-                        "{0}/src/".format(app_rel),
-                        "{0}/include/".format(app_rel),
+                        f"{app_rel}/src/",
+                        f"{app_rel}/include/",
                     )
-                    issues = [it for it in issues
-                              if any(it.get("file", "").startswith(p) for p in keep_prefixes)]
+                    issues = [it for it in issues if any(it.get("file", "").startswith(p) for p in keep_prefixes)]
 
                 if not issues:
                     continue
@@ -323,11 +311,11 @@ class CodeChecker(ComplianceTest):
 
             if any_reported:
                 return
-            
+
             if parsing_failed:
                 msg = ["CodeChecker reports (could not parse issues):"]
                 for app, out in parsing_failed:
-                    msg.append("\n=== {0} ===\n{1}".format(app.relative_to(utils.GIT_TOP), out))
+                    msg.append(f"\n=== {app.relative_to(utils.GIT_TOP)} ===\n{out}")
                 self.failure(self._sanitize_for_xml("\n".join(msg)))
                 return
 
@@ -336,15 +324,13 @@ class CodeChecker(ComplianceTest):
         # OK
         return
 
-
     def run(self, mode="default"):
         log = logging.getLogger(self.name)
 
-
         if mode == "default":
             default_apps = [
-                utils.GIT_TOP / "node",
-                utils.GIT_TOP / "lora_gateway",
+                utils.GIT_TOP / "main_node",
+                utils.GIT_TOP / "secondary_node",
             ]
 
             apps = []
@@ -356,15 +342,15 @@ class CodeChecker(ComplianceTest):
                 apps.append(app)
 
             if not apps:
-                self.skip("No default Zephyr apps found (node/lora_gateway)")
+                self.skip("No default Zephyr apps found (main_node/secondary_node)")
                 return
-            
+
             unique_apps = sorted(set(apps))
-            
+
             log.info("Apps (%d):", len(unique_apps))
             for a in unique_apps:
                 log.info("  - %s", a.relative_to(utils.GIT_TOP))
-            
+
             results = []
             for app in unique_apps:
                 log.info("Analyzing app: %s", app.relative_to(utils.GIT_TOP))
@@ -373,7 +359,7 @@ class CodeChecker(ComplianceTest):
 
             self._finalize_results(results)
             return
-        
+
         if mode == "path":
             exts = ('.c', '.h', '.cpp', '.hpp', '.cc', '.S', '.s', '.inc')
 
@@ -391,15 +377,13 @@ class CodeChecker(ComplianceTest):
             for f in utils.files_from_paths():
                 if f.endswith(exts):
                     files.append(f)
-            
+
             if not files:
                 self.skip("No files to list in path mode")
                 return
-            
+
             log.debug("Files (%d):\n%s", len(files), "\n".join(files))
 
-
-            
             apps = {}
             for f in files:
                 app = utils.find_zephyr_app_root(f)
@@ -407,7 +391,6 @@ class CodeChecker(ComplianceTest):
                     log.warning("No app (no prj.conf up-tree): %s", f)
                     continue
                 apps.setdefault(app, []).append(f)
-
 
             for app in full_apps:
                 apps[app] = None
@@ -419,7 +402,7 @@ class CodeChecker(ComplianceTest):
             if not apps:
                 self.skip("No Zephyr apps found for listed files")
                 return
-            
+
             results = []
             for app in sorted(apps.keys()):
                 log.info("Analyzing app: %s", app.relative_to(utils.GIT_TOP))
@@ -433,17 +416,17 @@ class CodeChecker(ComplianceTest):
 
             self._finalize_results(results)
             return
-    
+
         if mode != "diff":
-            self.error("Unknown mode: {0}".format(mode))
+            self.error(f"Unknown mode: {mode}")
             return
-        
+
         # DIFF MODE: Use git diff
         files = utils.get_files(filter="ACMRTUXB")
         if not files:
             self.skip("CodeChecker: no files to list in diff mode")
             return
-        
+
         ANALYZABLE_EXTS = ('.c', '.h', '.cpp', '.hpp', '.cc', '.S', '.s', '.inc')
         files = [f for f in files if f.endswith(ANALYZABLE_EXTS)]
         files = [f for f in files if (utils.GIT_TOP / f).is_file()]
@@ -451,9 +434,8 @@ class CodeChecker(ComplianceTest):
         if not files:
             self.skip("No analyzable files after filtering in diff mode")
             return
-        
-        log.debug("Files (%d):\n%s", len(files), "\n".join(files))
 
+        log.debug("Files (%d):\n%s", len(files), "\n".join(files))
 
         apps = {}
         for f in files:
@@ -467,11 +449,10 @@ class CodeChecker(ComplianceTest):
         for app in sorted(apps.keys()):
             log.info("  - %s", app.relative_to(utils.GIT_TOP))
 
-
         if not apps:
             self.skip("No Zephyr apps found for listed files")
             return
-        
+
         results = []
         for app in sorted(apps.keys()):
             log.info("Analyzing app: %s", app.relative_to(utils.GIT_TOP))
@@ -479,7 +460,5 @@ class CodeChecker(ComplianceTest):
             results.append((app, st, out, apps[app]))
 
         self._finalize_results(results)
-        
+
         return
-
-
