@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# Pre-push hook that runs clang-format, checkpatch, cmakestyle, coccinelle, ruff and pylint compliance checks
+# This hook uses the existing check_compliance.py script with specific modules
+
+# set -e  # Disabled to allow exit code handling
+
+# ANSI color codes for better output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# Unicode symbols
+CHECK_MARK="✓"
+CROSS_MARK="✗"
+WARNING="⚠"
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_BASE="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$WORKSPACE_BASE"
+
+# Determine commit range for analysis
+if git rev-parse --verify origin/main >/dev/null 2>&1; then
+    COMMIT_RANGE="origin/main..HEAD"
+else
+    COMMIT_RANGE="HEAD~5..HEAD"
+fi
+
+# Run compliance checks with no XML output and no individual files
+# Use raw output from the script
+python3 scripts/checks/check_compliance.py \
+    -m clangformat -m checkpatch -m cmakestyle -m coccinelle -m ruff -m pylint \
+    -c "$COMMIT_RANGE" \
+    -o /dev/null \
+    -n
+
+exit_code=$?
+
+if [ $exit_code -ne 0 ]; then
+    echo -e "${RED}❌ FAILED!${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ PASSED!${NC}"
