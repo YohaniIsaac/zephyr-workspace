@@ -15,6 +15,16 @@ import sys
 import traceback
 from pathlib import Path
 
+# ANSI color codes for colored output
+RED = '\033[0;31m'
+GREEN = '\033[0;32m'
+YELLOW = '\033[1;33m'
+ORANGE = '\033[38;5;214m'
+BLUE = '\033[0;34m'
+CYAN = '\033[0;36m'
+BOLD = '\033[1m'
+NC = '\033[0m'  # No Color
+
 from compliance_checks import AVAILABLE_CHECKS, EndTest, git, init_globals, resolve_path_hint
 from junitparser import JUnitXml, TestSuite
 
@@ -213,7 +223,7 @@ def _main(args):
             continue
 
         if testcase_class.name.lower() in excluded:
-            print(f"Skipping {testcase_class.name}")
+            print(f"{ORANGE}Skipping {testcase_class.name}{NC}")
             continue
 
         test = testcase_class()
@@ -224,7 +234,7 @@ def _main(args):
         saved_env = os.environ.copy()
 
         try:
-            print(f"Running {test.name:30} tests in {resolve_path_hint(test.path_hint)} ...")
+            print(f"{BLUE}Running {test.name:30}{NC} tests in {resolve_path_hint(test.path_hint)} ...")
             # Each check will use what it needs
             logging.info(f"Modo: {mode}")
             test.run(
@@ -275,12 +285,12 @@ def _main(args):
 
     if n_fails or n_warnings:
         if n_fails:
-            print(f"{n_fails} check(s) failed")
+            print(f"{RED}{n_fails} check(s) failed{NC}")
         if n_warnings:
-            print(f"{n_warnings} check(s) with warnings only")
+            print(f"{YELLOW}{n_warnings} check(s) with warnings only{NC}")
 
         for case in failed_cases + warning_cases:
-            print("", "-" * 80, case.name, "-" * 80, sep="\n")
+            print("", RED + "-" * 80, BOLD + case.name, RED + "-" * 80 + NC, sep="\n")
             for res in case.result:
                 errmsg = res.text.strip()
                 if res.type in ("error", "failure"):
@@ -299,7 +309,7 @@ def _main(args):
 
     if args.output:
         print(f"\nComplete results in {args.output}")
-    return n_fails
+    return n_fails + n_warnings
 
 
 def main(argv=None):
